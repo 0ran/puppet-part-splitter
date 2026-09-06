@@ -1,0 +1,675 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title> Puppet Parts · Asset Processor </title>
+	<script>
+		document.documentElement.dataset.theme = localStorage.getItem("theme") === "light" ? "light" : "dark";
+	</script>
+</head>
+<body>
+	<div id="app">
+		<header class="topbar">
+			<div class="topbar-inner">
+				<div class="brand">
+					<span class="brand-mark" aria-hidden="true">
+						<i data-lucide="layers">
+						</i>
+					</span>
+					<span class="brand-copy">
+						<strong> PUPPET <span> PARTS </span>
+						</strong>
+						<small> 零件处理工作台 <span class="brand-edition"> STUDIO </span>
+						</small>
+					</span>
+				</div>
+				<nav class="mode-tabs" aria-label="处理模式">
+					<button class="mode-tab active" data-mode="split" type="button" aria-pressed="true" aria-controls="splitPanel splitWorkspace">
+						<span class="mode-tab-icon" aria-hidden="true">
+							<i data-lucide="git-branch">
+							</i>
+						</span>
+						<span class="mode-tab-copy">
+							<span> 拆分分配 </span>
+							<small aria-hidden="true"> DISTRIBUTE </small>
+						</span>
+					</button>
+					<button class="mode-tab" data-mode="all" type="button" aria-pressed="false" aria-controls="allPanel allWorkspace">
+						<span class="mode-tab-icon" aria-hidden="true">
+							<i data-lucide="scan-line">
+							</i>
+						</span>
+						<span class="mode-tab-copy">
+							<span> 拆分零件 </span>
+							<small aria-hidden="true"> EXTRACT </small>
+						</span>
+					</button>
+					<button class="mode-tab" data-mode="psd" type="button" aria-pressed="false" aria-controls="psdPanel psdWorkspace">
+						<span class="mode-tab-icon" aria-hidden="true">
+							<i data-lucide="file-image">
+							</i>
+						</span>
+						<span class="mode-tab-copy">
+							<span> PSD拆分零件 </span>
+							<small aria-hidden="true"> PSD EXTRACT </small>
+						</span>
+					</button>
+					<button class="mode-tab" data-mode="merge" type="button" aria-pressed="false" aria-controls="mergePanel mergeWorkspace">
+						<span class="mode-tab-icon" aria-hidden="true">
+							<i data-lucide="combine">
+							</i>
+						</span>
+						<span class="mode-tab-copy">
+							<span> 合并素材 </span>
+							<small aria-hidden="true"> ASSEMBLE </small>
+						</span>
+					</button>
+				</nav>
+				<div class="topbar-actions">
+					<span class="local-badge" title="图片仅在本地浏览器中处理，不会上传至服务器">
+						<span class="local-dot" aria-hidden="true">
+						</span>
+						<span> 本地处理 <small> ON DEVICE </small>
+						</span>
+					</span>
+					<span class="topbar-divider" aria-hidden="true">
+					</span>
+					<button id="themeToggle" class="icon-btn theme-toggle" type="button" aria-label="切换明暗主题">
+					</button>
+					<a class="icon-btn" href="https://github.com/0ran" target="_blank" rel="noopener noreferrer" aria-label="前往 GitHub 主页" title="GitHub">
+						<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+							<path
+								d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+						</svg>
+					</a>
+					<a class="icon-btn" href="https://space.bilibili.com/111174060" target="_blank" rel="noopener noreferrer" aria-label="前往 Bilibili 主页" title="Bilibili">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<rect x="3" y="7" width="18" height="13" rx="3" />
+							<path d="m8 3 3 4" />
+							<path d="m16 3-3 4" />
+							<path d="M9 12v3" />
+							<path d="M15 12v3" />
+						</svg>
+					</a>
+				</div>
+			</div>
+		</header>
+		<main class="layout">
+			<aside class="panel">
+				<section id="splitPanel">
+					<div class="panel-intro">
+						<div>
+							<span class="eyebrow"> PIPELINE 01 / DISTRIBUTE </span>
+							<h1> 拆分分配 </h1>
+							<p> 检测图像中的独立零件，并将它们智能分配到多个图层。 </p>
+						</div>
+					</div>
+					<div class="split-actions">
+						<button id="uploadBtn" class="btn primary" type="button">
+							<i data-lucide="upload">
+							</i>
+							<span> 上传图片 </span>
+						</button>
+						<button id="clearBtn" class="btn ghost clear-btn hidden" type="button">
+							<i data-lucide="trash-2">
+							</i>
+							<span> 清除当前文件 </span>
+						</button>
+						<input id="fileInput" type="file" accept="image/*" hidden />
+					</div>
+					<section class="source-box">
+						<div class="source-canvas checker">
+							<canvas id="sourceCanvas" width="512" height="512">
+							</canvas>
+						</div>
+						<div id="sourceMeta" class="meta hidden">
+							<span id="sourceName">
+							</span>
+							<span id="sourceSize">
+							</span>
+						</div>
+					</section>
+					<section class="controls">
+						<div class="field">
+							<label class="field-label" for="partCountInput"> 份数 </label>
+							<div class="number-wrap">
+								<input id="partCountInput" type="number" min="1" max="1000" step="1" value="3" />
+								<span class="unit"> 份 </span>
+							</div>
+						</div>
+						<div class="field">
+							<div class="field-head">
+								<label class="field-label"> 分组 </label>
+								<button class="help-btn" type="button" aria-label="分组方式说明">
+									<i data-lucide="circle-help">
+									</i>
+								</button>
+							</div>
+							<div class="segmented" id="modeSeg">
+								<button class="seg active" data-value="balance" type="button"> 面积均衡 </button>
+								<button class="seg" data-value="count" type="button"> 数量均衡 </button>
+								<button class="seg" data-value="bands" type="button"> 位置分带 </button>
+							</div>
+							<div class="help-tip" role="tooltip">
+								<div class="help-row">
+									<b> 面积均衡 </b>
+									<span> 让每组零件总覆盖面积尽量接近，输出图层大小更均匀。 </span>
+								</div>
+								<div class="help-row">
+									<b> 数量均衡 </b>
+									<span> 让每组零件数量尽量平均，按数量分配。 </span>
+								</div>
+								<div class="help-row">
+									<b> 位置分带 </b>
+									<span> 按方向把零件划分成连续分带，保持图像位置关系。 </span>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<label class="field-label"> 输出布局 </label>
+							<div class="segmented" id="layoutSeg">
+								<button class="seg active" data-value="pack" type="button"> 紧凑打包 </button>
+								<button class="seg" data-value="crop" type="button"> 原位裁剪 </button>
+							</div>
+						</div>
+						<div class="field" id="axisField">
+							<div class="field-head">
+								<label class="field-label"> 分带方向 </label>
+								<button class="help-btn" type="button" aria-label="分带方向说明">
+									<i data-lucide="circle-help">
+									</i>
+								</button>
+							</div>
+							<div class="segmented" id="axisSeg">
+								<button class="seg active" data-value="y" type="button"> 横带 </button>
+								<button class="seg" data-value="x" type="button"> 竖带 </button>
+							</div>
+							<div class="help-tip" role="tooltip">
+								<div class="help-row">
+									<b> 横带 </b>
+									<span> 按垂直方向从上到下分带，每组是一条水平横带。 </span>
+								</div>
+								<div class="help-row">
+									<b> 竖带 </b>
+									<span> 按水平方向从左到右分带，每组是一条垂直竖带。 </span>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<div class="field-head">
+								<label class="field-label" for="minAreaInput"> 最小零件面积 </label>
+								<button class="help-btn" type="button" aria-label="最小零件面积说明">
+									<i data-lucide="circle-help">
+									</i>
+								</button>
+							</div>
+							<div class="number-wrap">
+								<input id="minAreaInput" type="number" min="1" max="100000" step="1" value="8" />
+								<span class="unit"> px </span>
+							</div>
+							<div class="help-tip" role="tooltip">
+								<div class="help-row">
+									<b> 作用 </b>
+									<span> 面积小于该值的连通区域会被忽略，不生成零件。 </span>
+								</div>
+								<div class="help-row">
+									<b> 调大 </b>
+									<span> 过滤噪点和小碎片，输出更干净。 </span>
+								</div>
+								<div class="help-row">
+									<b> 调小 </b>
+									<span> 保留更小的细节零件。 </span>
+								</div>
+							</div>
+						</div>
+						<button id="splitBtn" class="btn primary block" type="button" disabled>
+							<i data-lucide="scissors">
+							</i>
+							<span> 开始拆分 </span>
+						</button>
+					</section>
+					<section class="stats">
+						<div class="stat">
+							<span class="stat-value" id="partCount"> 0 </span>
+							<span class="stat-label"> 零件 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="layerCount"> 0 </span>
+							<span class="stat-label"> 层 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="coverPct"> 0% </span>
+							<span class="stat-label"> 覆盖 </span>
+						</div>
+					</section>
+				</section>
+				<section id="allPanel" class="hidden">
+					<div class="panel-intro">
+						<div>
+							<span class="eyebrow"> PIPELINE 02 / EXTRACT </span>
+							<h1> 拆分零件 </h1>
+							<p> 把每一个检测到的零件输出为独立图层。 </p>
+						</div>
+					</div>
+					<div class="split-actions">
+						<button id="allUploadBtn" class="btn primary" type="button">
+							<i data-lucide="upload">
+							</i>
+							<span> 上传图片 </span>
+						</button>
+						<button id="allClearBtn" class="btn ghost clear-btn hidden" type="button">
+							<i data-lucide="trash-2">
+							</i>
+							<span> 清除当前文件 </span>
+						</button>
+						<input id="allFileInput" type="file" accept="image/*" hidden />
+					</div>
+					<section class="source-box">
+						<div class="source-canvas checker">
+							<canvas id="allSourceCanvas" width="512" height="512">
+							</canvas>
+						</div>
+						<div id="allSourceMeta" class="meta hidden">
+							<span id="allSourceName">
+							</span>
+							<span id="allSourceSize">
+							</span>
+						</div>
+					</section>
+					<section class="controls">
+						<div class="field">
+							<label class="field-label"> 输出布局 </label>
+							<div class="segmented" id="allLayoutSeg">
+								<button class="seg active" data-value="pack" type="button"> 紧凑打包 </button>
+								<button class="seg" data-value="crop" type="button"> 原位裁剪 </button>
+							</div>
+						</div>
+						<div class="field">
+							<div class="field-head">
+								<label class="field-label" for="allMinAreaInput"> 最小零件面积 </label>
+								<button class="help-btn" type="button" aria-label="最小零件面积说明">
+									<i data-lucide="circle-help">
+									</i>
+								</button>
+							</div>
+							<div class="number-wrap">
+								<input id="allMinAreaInput" type="number" min="1" max="100000" step="1" value="8" />
+								<span class="unit"> px </span>
+							</div>
+							<div class="help-tip" role="tooltip">
+								<div class="help-row">
+									<b> 作用 </b>
+									<span> 面积小于该值的连通区域会被忽略，不生成零件。 </span>
+								</div>
+								<div class="help-row">
+									<b> 调大 </b>
+									<span> 过滤噪点和小碎片，输出更干净。 </span>
+								</div>
+								<div class="help-row">
+									<b> 调小 </b>
+									<span> 保留更小的细节零件。 </span>
+								</div>
+							</div>
+						</div>
+						<button id="allSplitBtn" class="btn primary block" type="button" disabled>
+							<i data-lucide="package-open">
+							</i>
+							<span> 开始拆分全部零件 </span>
+						</button>
+					</section>
+					<section class="stats">
+						<div class="stat">
+							<span class="stat-value" id="allPartCount"> 0 </span>
+							<span class="stat-label"> 零件 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="allLayerCount"> 0 </span>
+							<span class="stat-label"> 图层 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="allCoverPct"> 0% </span>
+							<span class="stat-label"> 覆盖 </span>
+						</div>
+					</section>
+				</section>
+				<section id="psdPanel" class="hidden">
+					<div class="panel-intro">
+						<div>
+							<span class="eyebrow"> PIPELINE 03 / PSD EXTRACT </span>
+							<h1> PSD拆分零件 </h1>
+							<p> 读取 PSD 原始图层，把每个图层输出为独立 PNG（可选包含隐藏图层），并保留文件夹结构。 </p>
+						</div>
+					</div>
+					<div class="split-actions">
+						<button id="psdUploadBtn" class="btn primary" type="button">
+							<i data-lucide="upload">
+							</i>
+							<span> 上传 PSD </span>
+						</button>
+						<button id="psdClearBtn" class="btn ghost clear-btn hidden" type="button">
+							<i data-lucide="trash-2">
+							</i>
+							<span> 清除当前文件 </span>
+						</button>
+						<input id="psdFileInput" type="file" accept=".psd,.psb,image/vnd.adobe.photoshop,image/x-photoshop,application/x-photoshop,application/photoshop" hidden />
+					</div>
+					<section class="source-box">
+						<div class="source-canvas checker">
+							<canvas id="psdSourceCanvas" width="512" height="512" aria-label="PSD 合成图预览">
+							</canvas>
+						</div>
+						<div id="psdSourceMeta" class="meta hidden">
+							<span id="psdSourceName">
+							</span>
+							<span id="psdSourceSize">
+							</span>
+						</div>
+						<p id="psdLayerInfo" class="source-note">
+						</p>
+						<p class="source-note"> 预览优先由可见图层重建，合成图仅作为兜底；16 / 32 位图像按 8 位 PNG 输出。 </p>
+						<p id="psdError" class="source-error hidden" role="alert">
+						</p>
+					</section>
+					<section class="controls">
+						<div class="field">
+							<label class="field-label"> 输出布局 </label>
+							<div class="segmented" id="psdLayoutSeg">
+								<button class="seg active" data-value="pack" type="button"> 紧凑打包 </button>
+								<button class="seg" data-value="crop" type="button"> 原位裁剪 </button>
+							</div>
+							<p class="source-note"> 紧凑打包裁去空白；原位裁剪保留 PSD 原图尺寸和零件坐标，其余区域透明。切换布局后请重新拆分。 </p>
+						</div>
+						<div class="field">
+							<div class="field-head">
+								<label class="field-label" for="psdIncludeHiddenInput"> 拆分隐藏图层 </label>
+								<label class="switch">
+									<input id="psdIncludeHiddenInput" type="checkbox" checked />
+									<span class="switch-track">
+									</span>
+								</label>
+							</div>
+							<p class="source-note"> 开启后，PSD 中隐藏的图层也会导出为独立 PNG；关闭则跳过，仅导出可见图层。 </p>
+						</div>
+						<button id="psdSplitBtn" class="btn primary block" type="button" disabled>
+							<i data-lucide="package-open">
+							</i>
+							<span> 开始拆分全部零件 </span>
+						</button>
+					</section>
+					<section class="stats">
+						<div class="stat">
+							<span class="stat-value" id="psdPartCount"> 0 </span>
+							<span class="stat-label"> 零件 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="psdLayerCount"> 0 </span>
+							<span class="stat-label"> 图层 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="psdCoverPct"> 0 </span>
+							<span class="stat-label"> 隐藏层 </span>
+						</div>
+					</section>
+				</section>
+				<section id="mergePanel" class="hidden">
+					<div class="panel-intro">
+						<div>
+							<span class="eyebrow"> PIPELINE 04 / ASSEMBLE </span>
+							<h1> 合并素材 </h1>
+							<p> 批量导入素材，自动排布并生成一张合并图。 </p>
+						</div>
+					</div>
+					<div class="merge-toolbar">
+						<div class="merge-import">
+							<button id="importBtn" class="btn primary" type="button" aria-haspopup="menu" aria-expanded="false">
+								<i data-lucide="folder-plus">
+								</i>
+								<span> 导入素材 </span>
+								<i data-lucide="chevron-down">
+								</i>
+							</button>
+							<div id="importMenu" class="import-menu hidden" role="menu">
+								<button id="importImageBtn" type="button" role="menuitem">
+									<i data-lucide="images">
+									</i>
+									<span> 选择图片文件 </span>
+								</button>
+								<button id="importFolderBtn" type="button" role="menuitem">
+									<i data-lucide="folder-open">
+									</i>
+									<span> 选择文件夹 </span>
+								</button>
+							</div>
+						</div>
+						<button id="mergeClearBtn" class="btn ghost clear-btn hidden" type="button">
+							<i data-lucide="trash-2">
+							</i>
+							<span> 清除当前素材 </span>
+						</button>
+						<input id="imageInput" type="file" accept="image/*" multiple hidden />
+					</div>
+					<div id="folderStatus" class="folder-status">
+						<span id="folderCount"> 0张 </span>
+					</div>
+					<div id="folderPreview" class="folder-preview hidden">
+					</div>
+					<section class="controls">
+						<div class="field">
+							<label class="field-label" for="gapInput"> 零件间距 </label>
+							<div class="number-wrap">
+								<input id="gapInput" type="number" min="0" max="512" step="1" value="4" />
+								<span class="unit"> px </span>
+							</div>
+						</div>
+						<div class="field">
+							<div class="field-head">
+								<label class="field-label" for="rotateInput"> 自动旋转 </label>
+								<label class="switch">
+									<input id="rotateInput" type="checkbox" />
+									<span class="switch-track">
+									</span>
+								</label>
+							</div>
+						</div>
+						<div class="field">
+							<label class="field-label" for="scaleInput"> 大小倍数 </label>
+							<div class="number-wrap">
+								<input id="scaleInput" type="number" min="0.01" max="100" step="0.1" value="1" />
+								<span class="unit"> 倍 </span>
+							</div>
+						</div>
+						<button id="mergeBtn" class="btn primary block" type="button" disabled>
+							<i data-lucide="combine">
+							</i>
+							<span> 开始合并 </span>
+						</button>
+					</section>
+					<section class="stats cols-2">
+						<div class="stat">
+							<span class="stat-value" id="mergePartCount"> 0 </span>
+							<span class="stat-label"> 零件 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="mergeSize"> 0×0 </span>
+							<span class="stat-label"> 合并尺寸 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="mergeScale"> 1倍 </span>
+							<span class="stat-label"> 缩放 </span>
+						</div>
+						<div class="stat">
+							<span class="stat-value" id="mergeGap"> 0 </span>
+							<span class="stat-label"> 间距 </span>
+						</div>
+					</section>
+				</section>
+			</aside>
+			<section class="workspace">
+				<div id="splitWorkspace">
+					<div id="emptyState" class="empty-state">
+						<div class="empty-orbit">
+							<i data-lucide="image-up">
+							</i>
+							<span>
+							</span>
+						</div>
+						<div class="empty-copy">
+							<strong> 等待输入素材 </strong>
+							<span> 上传一张图片开始构建拆分任务 </span>
+						</div>
+						<div class="empty-hint">
+							<kbd> DROP </kbd>
+							<span> 支持 PNG / JPG / WEBP </span>
+						</div>
+					</div>
+					<div id="results" class="results hidden">
+						<div class="results-actions">
+							<button id="downloadAllBtn" class="btn primary" type="button">
+								<i data-lucide="archive">
+								</i>
+								<span> 全部下载 </span>
+							</button>
+							<button id="manifestBtn" class="btn ghost" type="button">
+								<i data-lucide="file-json">
+								</i>
+								<span> 数据 </span>
+							</button>
+						</div>
+						<div class="size-summary hidden" id="sizeSummary">
+						</div>
+						<div id="layerGrid" class="layer-grid">
+						</div>
+					</div>
+				</div>
+				<div id="allWorkspace" class="hidden">
+					<div id="allEmptyState" class="empty-state">
+						<div class="empty-orbit">
+							<i data-lucide="scan-line">
+							</i>
+							<span>
+							</span>
+						</div>
+						<div class="empty-copy">
+							<strong> 准备提取零件 </strong>
+							<span> 上传图片后，系统会自动识别所有连通区域 </span>
+						</div>
+						<div class="empty-hint">
+							<kbd> ANALYZE </kbd>
+							<span> 像素级本地处理 · 无需上传 </span>
+						</div>
+					</div>
+					<div id="allResults" class="results hidden">
+						<div class="results-actions">
+							<button id="allDownloadAllBtn" class="btn primary" type="button">
+								<i data-lucide="archive">
+								</i>
+								<span> 全部下载 </span>
+							</button>
+							<button id="allManifestBtn" class="btn ghost" type="button">
+								<i data-lucide="file-json">
+								</i>
+								<span> 数据 </span>
+							</button>
+						</div>
+						<div class="size-summary hidden" id="allSummary">
+						</div>
+						<div id="allLayerGrid" class="layer-grid">
+						</div>
+					</div>
+				</div>
+				<div id="psdWorkspace" class="hidden">
+					<div id="psdEmptyState" class="empty-state">
+						<div class="empty-orbit">
+							<i data-lucide="file-image">
+							</i>
+							<span>
+							</span>
+						</div>
+						<div class="empty-copy">
+							<strong> 准备提取 PSD 零件 </strong>
+							<span> 将 PSD 拖入此处，或点击左侧上传 </span>
+						</div>
+						<div class="empty-hint">
+							<kbd> DROP </kbd>
+							<span> 支持拖拽导入 · 像素级本地处理 </span>
+						</div>
+					</div>
+					<div id="psdResults" class="results hidden">
+						<div class="results-actions">
+							<button id="psdDownloadAllBtn" class="btn primary" type="button" disabled>
+								<i data-lucide="archive">
+								</i>
+								<span> 全部下载 </span>
+							</button>
+							<button id="psdManifestBtn" class="btn ghost" type="button" disabled>
+								<i data-lucide="file-json">
+								</i>
+								<span> 数据 </span>
+							</button>
+						</div>
+						<div class="size-summary hidden" id="psdSummary">
+						</div>
+						<div id="psdLayerGrid" class="layer-grid">
+						</div>
+					</div>
+				</div>
+				<div id="mergeWorkspace" class="hidden">
+					<div id="mergeEmpty" class="empty-state">
+						<div class="empty-orbit">
+							<i data-lucide="folder-plus">
+							</i>
+							<span>
+							</span>
+						</div>
+						<div class="empty-copy">
+							<strong> 等待素材队列 </strong>
+							<span> 导入多张图片，开始自动排布合并 </span>
+						</div>
+						<div class="empty-hint">
+							<kbd> QUEUE </kbd>
+							<span> 支持选择文件或整个文件夹 </span>
+						</div>
+					</div>
+					<div id="mergeResults" class="results hidden">
+						<div class="results-actions">
+							<button id="mergeDownloadBtn" class="btn primary" type="button">
+								<i data-lucide="download">
+								</i>
+								<span> 下载合并图 </span>
+							</button>
+							<button id="mergeAllBtn" class="btn ghost" type="button">
+								<i data-lucide="archive">
+								</i>
+								<span> 全部下载 </span>
+							</button>
+							<button id="mergeManifestBtn" class="btn ghost" type="button">
+								<i data-lucide="file-json">
+								</i>
+								<span> 数据 </span>
+							</button>
+						</div>
+						<div class="merge-preview checker" id="mergePreview">
+						</div>
+						<div class="size-summary hidden" id="mergeSummary">
+						</div>
+					</div>
+				</div>
+			</section>
+		</main>
+		<div id="previewModal" class="preview-modal hidden" role="dialog" aria-modal="true">
+			<button id="previewModalClose" class="icon-btn preview-modal-close" type="button" aria-label="关闭预览">
+				<i data-lucide="x">
+				</i>
+			</button>
+			<div class="preview-modal-body">
+				<img id="previewModalImage" alt="" />
+				<span id="previewModalName">
+				</span>
+			</div>
+		</div>
+	</div>
+	<script type="module" src="./main.js">
+	</script>
+</body>
+</html>
