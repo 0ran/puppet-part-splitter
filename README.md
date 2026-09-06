@@ -8,12 +8,12 @@ A fully client-side asset processing workbench that splits illustrations, images
 
 <table>
   <tr>
-    <td align="center"><img src="img/SnowShot_2026-09-06_15-25-49.png" width="400" alt="Merge Assets" /></td>
-    <td align="center"><img src="img/SnowShot_2026-09-06_15-24-37.png" width="400" alt="Split & Distribute" /></td>
+    <td align="center"><img src="https://i.ibb.co/8DTxYSRM/Snow-Shot-2026-09-06-15-25-49.png" width="400" alt="Merge Assets" /></td>
+    <td align="center"><img src="https://i.ibb.co/TSt1vk8/Snow-Shot-2026-09-06-15-24-37.png" width="400" alt="Split & Distribute" /></td>
   </tr>
   <tr>
-    <td align="center"><img src="img/SnowShot_2026-09-06_15-25-07.png" width="400" alt="PSD Layer Extraction" /></td>
-    <td align="center"><img src="img/SnowShot_2026-09-06_15-24-47.png" width="400" alt="Extract All Parts" /></td>
+    <td align="center"><img src="https://i.ibb.co/d47d51ZX/Snow-Shot-2026-09-06-15-25-07.png" width="400" alt="PSD Layer Extraction" /></td>
+    <td align="center"><img src="https://i.ibb.co/xtxTTkZK/Snow-Shot-2026-09-06-15-24-47.png" width="400" alt="Extract All Parts" /></td>
   </tr>
 </table>
 
