@@ -1,6 +1,7 @@
 import { createIcons, icons } from "lucide";
 import JSZip from "jszip";
 import { readPsdImage, splitPsdLayers } from "./psd.js";
+import { getLanguage, setLanguage, t, translateDocument } from "./i18n.js";
 import {
   readImage,
   detectParts,
@@ -116,6 +117,7 @@ const els = {
   mergeAllBtn: document.getElementById("mergeAllBtn"),
   mergeManifestBtn: document.getElementById("mergeManifestBtn"),
   themeToggle: document.getElementById("themeToggle"),
+  langToggle: document.getElementById("langToggle"),
 };
 
 let state = {
@@ -168,7 +170,7 @@ function bindSeg(seg, onChange) {
 
 function setBusy(busy) {
   els.splitBtn.disabled = busy || !state.source;
-  els.splitBtn.querySelector("span").textContent = busy ? "拆分中" : "开始拆分";
+  els.splitBtn.querySelector("span").textContent = busy ? t("busySplit") : t("startSplit");
   syncSourceClearButtons();
 }
 
@@ -178,8 +180,8 @@ function setAllBusy(busy, mode = "all") {
   const splitBtn = els[`${mode}SplitBtn`];
   splitBtn.disabled = busy || !source;
   splitBtn.querySelector("span").textContent = busy
-    ? mode === "psd" && psdLoading ? "读取 PSD 中" : "拆分中"
-    : mode === "psd" ? "开始导出全部图层" : "开始拆分全部零件";
+    ? mode === "psd" && psdLoading ? t("busyPsdReading") : t("busySplit")
+    : mode === "psd" ? t("psdExportStart") : t("allSplitTitle");
   els[`${mode}UploadBtn`].disabled = busy;
   if (mode === "all") els.allMinAreaInput.disabled = busy;
   if (mode === "psd") {
@@ -299,12 +301,25 @@ function showPsdError(message = "") {
   els.psdError.classList.toggle("hidden", !message);
 }
 
+function refreshPsdSourceInfo() {
+  if (!state.psdSource) return;
+  const source = state.psdSource;
+  const hiddenCount = source.entries.filter((entry) => entry.hidden).length;
+  els.psdLayerInfo.textContent = t("psdLayerInfo", {
+    count: source.entries.length,
+    hidden: hiddenCount,
+    folders: source.groups.length,
+  });
+  els.psdPartCount.textContent = source.entries.length;
+  showPsdError(source.warnings.map((warning) => t(warning.key, warning.vars)).join("\n"));
+}
+
 async function loadPsdSource(file) {
   if (psdLoading || partRunning.psd) return;
   psdLoading = true;
   state.psdSource = null;
   state.psdSourceName = "";
-  els.psdUploadBtn.querySelector("span").textContent = "读取 PSD 中";
+  els.psdUploadBtn.querySelector("span").textContent = t("busyPsdReading");
   try {
     resetAllResults("psd");
     showPsdError();
@@ -327,16 +342,13 @@ async function loadPsdSource(file) {
     els.psdSourceSize.textContent = `${source.width} × ${source.height}`;
     els.psdSourceMeta.classList.remove("hidden");
     els.psdClearBtn.classList.remove("hidden");
-    const hiddenCount = source.entries.filter((entry) => entry.hidden).length;
-    els.psdLayerInfo.textContent = `已读取 ${source.entries.length} 个源图层（含隐藏 ${hiddenCount} 个）· ${source.groups.length} 个文件夹`;
-    els.psdPartCount.textContent = source.entries.length;
-    showPsdError(source.warnings.join("\n"));
+    refreshPsdSourceInfo();
   } catch (error) {
     console.error("loadPsdSource failed:", error);
-    showPsdError(error.message || "PSD 读取失败，请检查文件后重试。");
+    showPsdError(error.message || t("psdReadFailed"));
   } finally {
     psdLoading = false;
-    els.psdUploadBtn.querySelector("span").textContent = "上传 PSD";
+    els.psdUploadBtn.querySelector("span").textContent = t("uploadPsd");
     setAllBusy(false, "psd");
   }
 }
@@ -381,7 +393,7 @@ async function runSplit() {
       els.results.classList.remove("hidden");
       els.emptyState.classList.add("hidden");
       els.sizeSummary.classList.remove("hidden");
-      els.sizeSummary.textContent = "未检测到零件，请调整最小面积或检查图片背景";
+      els.sizeSummary.textContent = t("noPartsDetected");
       els.layerGrid.innerHTML = "";
       els.partCount.textContent = "0";
       els.layerCount.textContent = "0";
@@ -474,8 +486,8 @@ function renderResults() {
   els.sizeSummary.classList.remove("hidden");
   els.sizeSummary.textContent =
     state.layout === "pack"
-      ? `零件 1:1 原比例 · 输出合计 ${Math.round(layerPx).toLocaleString()} px，比原图省 ${saved.toFixed(1)}%`
-      : `零件 1:1 原比例 · 原位裁剪，每层 ${layers.map((l) => `${l.width}×${l.height}`).join(" / ")}`;
+      ? t("splitSummaryPack", { px: Math.round(layerPx).toLocaleString(), saved: saved.toFixed(1) })
+      : t("splitSummaryCrop", { sizes: layers.map((l) => `${l.width}×${l.height}`).join(" / ") });
 
   els.layerGrid.innerHTML = "";
 
@@ -483,8 +495,12 @@ function renderResults() {
     appendLayerCard(
       els.layerGrid,
       layer,
-      `层 ${layer.index}`,
-      `${layer.group.length} 零件 · ${layer.pct.toFixed(1)}% · ${layer.width}×${layer.height}`,
+      t("layerTitle", { index: layer.index }),
+      t("layerMeta", {
+        count: layer.group.length,
+        pct: layer.pct.toFixed(1),
+        size: `${layer.width}×${layer.height}`,
+      }),
       `part_${layer.index}.png`
     );
   }
@@ -519,7 +535,7 @@ function appendLayerCard(grid, layer, title, metaText, fileName) {
   const download = document.createElement("button");
   download.className = "btn ghost small";
   download.type = "button";
-  download.innerHTML = '<i data-lucide="download"></i><span>下载</span>';
+  download.innerHTML = `<i data-lucide="download"></i><span>${t("download")}</span>`;
   download.addEventListener("click", async () => saveBlob(await layerToBlob(layer), fileName));
 
   card.append(head, view, download);
@@ -554,7 +570,7 @@ async function runAllSplit(mode = "all") {
     const imageData = source.ctx.getImageData(0, 0, source.width, source.height);
     const { parts, mask } = detectParts(imageData, { minArea });
     if (!parts.length) {
-      showAllMessage(mode, "未检测到零件，请调整最小面积或检查图片背景");
+      showAllMessage(mode, t("noPartsDetected"));
       return;
     }
 
@@ -624,7 +640,7 @@ async function runAllSplit(mode = "all") {
     renderAllResults(mode);
   } catch (error) {
     resetAllResults(mode);
-    showAllMessage(mode, `拆分失败：${error.message || "请检查图片或缩小画布后重试"}`);
+    showAllMessage(mode, t("splitFailed", { message: error.message || t("splitRetryHint") }));
   } finally {
     partRunning[mode] = false;
     setAllBusy(false, mode);
@@ -646,7 +662,7 @@ async function runPsdSplit() {
     renderPsdResults();
   } catch (error) {
     state.psdOutput = null;
-    showAllMessage("psd", `PSD 图层导出失败：${error.message || "请检查文件后重试"}`);
+    showAllMessage("psd", t("psdExportFailed", { message: error.message || t("checkFileRetry") }));
   } finally {
     partRunning.psd = false;
     setAllBusy(false, "psd");
@@ -654,7 +670,7 @@ async function runPsdSplit() {
 }
 
 function renderPsdResults() {
-  const { layers, manifest, layout } = state.psdOutput;
+  const { layers, manifest, layout, warnings } = state.psdOutput;
   els.psdResults.classList.remove("hidden");
   els.psdEmptyState.classList.add("hidden");
   els.psdPartCount.textContent = manifest.detected;
@@ -662,26 +678,41 @@ function renderPsdResults() {
   els.psdCoverPct.textContent = manifest.hidden;
   const layerByIndex = new Map(layers.map((layer) => [layer.index, layer]));
   const failed = Math.max(0, manifest.layers.length - manifest.emitted);
-  const skippedText = manifest.skippedHidden ? ` · 已跳过 ${manifest.skippedHidden} 个隐藏图层` : "";
+  const skippedText = manifest.skippedHidden
+    ? t("skippedHidden", { count: manifest.skippedHidden })
+    : "";
   const layoutText = layout === "crop"
-    ? `每张 PNG 保留 PSD 原图 ${manifest.canvas[0]}×${manifest.canvas[1]} 及图层原始坐标`
-    : "仅裁去每层透明边界，整层文字和分离内容不拆散";
+    ? t("psdLayoutCropText", { size: `${manifest.canvas[0]}×${manifest.canvas[1]}` })
+    : t("psdLayoutPackText");
   els.psdSummary.classList.remove("hidden");
-  els.psdSummary.textContent = `读取 ${manifest.detected} 个源图层 → 导出 ${manifest.emitted} 张 PNG${skippedText}${failed ? ` · ${failed} 层失败，详见提示及数据` : ""} · ${manifest.groups.length} 个文件夹保留为 ZIP 目录 · ${layoutText}`;
-  showPsdError(manifest.warnings.join("\n"));
+  els.psdSummary.textContent = t("psdSummary", {
+    detected: manifest.detected,
+    emitted: manifest.emitted,
+    skipped: skippedText,
+    failed: failed ? t("failedLayers", { count: failed }) : "",
+    folders: manifest.groups.length,
+    layout: layoutText,
+  });
+  showPsdError(warnings.map((warning) => t(warning.key, warning.vars)).join("\n"));
   els.psdLayerGrid.replaceChildren();
-  const typeLabels = { text: "文字图层", bitmap: "像素图层", "smart-object": "智能对象", vector: "矢量图层", adjustment: "调整图层" };
+  const typeLabels = {
+    text: t("typeText"),
+    bitmap: t("typeBitmap"),
+    "smart-object": t("typeSmartObject"),
+    vector: t("typeVector"),
+    adjustment: t("typeAdjustment"),
+  };
   for (const record of manifest.layers) {
     const layer = layerByIndex.get(record.index);
     if (!layer) {
-      appendPsdErrorCard(els.psdLayerGrid, record, typeLabels[record.type] || "图层");
+      appendPsdErrorCard(els.psdLayerGrid, record, typeLabels[record.type] || t("typeLayer"));
       continue;
     }
     const details = [`${layer.width}×${layer.height}`, typeLabels[layer.type] || layer.type];
-    if (layer.hidden) details.push("隐藏层");
-    if (record.status === "placeholder") details.push("透明占位");
-    else if (record.status === "fallback") details.push("合成图回退");
-    else if (record.status === "empty") details.push("空图层 / 透明 PNG");
+    if (layer.hidden) details.push(t("hiddenLayer"));
+    if (record.status === "placeholder") details.push(t("placeholderLayer"));
+    else if (record.status === "fallback") details.push(t("fallbackLayer"));
+    else if (record.status === "empty") details.push(t("emptyLayer"));
     appendLayerCard(els.psdLayerGrid, layer, layer.sourcePath.join(" / "), details.join(" · "), layer.file.split("/").pop());
   }
   createIcons({ icons });
@@ -697,11 +728,11 @@ function appendPsdErrorCard(grid, record, typeLabel) {
   titleEl.textContent = record.sourcePath.join(" / ");
   const metaEl = document.createElement("div");
   metaEl.className = "layer-meta";
-  metaEl.textContent = `${typeLabel} · 导出失败`;
+  metaEl.textContent = t("exportFailed", { type: typeLabel });
   head.append(titleEl, metaEl);
   const note = document.createElement("div");
   note.className = "layer-error-note";
-  note.textContent = record.error || "该图层无法导出";
+  note.textContent = record.error || t("layerExportError");
   card.append(head, note);
   grid.append(card);
 }
@@ -722,10 +753,17 @@ function renderAllResults(mode = "all") {
   els[`${mode}Summary`].classList.remove("hidden");
   els[`${mode}Summary`].textContent =
     layout === "pack"
-      ? `${parts.length} 个零件已拆分为独立图层 · 输出合计 ${Math.round(layerPx).toLocaleString()} px，比原图省 ${saved.toFixed(1)}%`
+      ? t("allSummaryPack", {
+          count: parts.length,
+          px: Math.round(layerPx).toLocaleString(),
+          saved: saved.toFixed(1),
+        })
       : mode === "psd"
-        ? `${parts.length} 个零件已拆分为独立图层 · 原位裁剪，每层保留 PSD 原图 ${manifest.canvas[0]}×${manifest.canvas[1]} 尺寸和零件坐标，其余区域透明`
-        : `${parts.length} 个零件已拆分为独立图层 · 原位裁剪，坐标写入 manifest.json`;
+        ? t("allSummaryCropPsd", {
+            count: parts.length,
+            size: `${manifest.canvas[0]}×${manifest.canvas[1]}`,
+          })
+        : t("allSummaryCropImage", { count: parts.length });
 
   els[`${mode}LayerGrid`].innerHTML = "";
 
@@ -733,8 +771,8 @@ function renderAllResults(mode = "all") {
     appendLayerCard(
       els[`${mode}LayerGrid`],
       layer,
-      `零件 ${layer.index}`,
-      `${layer.width}×${layer.height} · ${layer.pct.toFixed(1)}%`,
+      t("partTitle", { index: layer.index }),
+      t("partMeta", { size: `${layer.width}×${layer.height}`, pct: layer.pct.toFixed(1) }),
       partFileName(layer.index)
     );
   }
@@ -759,7 +797,7 @@ async function layerToBlob(layer) {
   const canvas = layer.renderCanvas ? layer.renderCanvas() : layer.canvas;
   try {
     const blob = await canvasToBlob(canvas);
-    if (!blob) throw new Error("无法生成图层 PNG，请缩小画布后重试");
+    if (!blob) throw new Error(t("canvasPngError"));
     return blob;
   } finally {
     if (layer.renderCanvas) canvas.width = canvas.height = 1;
@@ -833,7 +871,7 @@ function setMode(mode) {
 
 function setMergeBusy(busy) {
   els.mergeBtn.disabled = busy || state.merge.files.length === 0;
-  els.mergeBtn.querySelector("span").textContent = busy ? "合并中" : "开始合并";
+  els.mergeBtn.querySelector("span").textContent = busy ? t("busyMerge") : t("mergeStart");
   els.mergeClearBtn.disabled = busy;
 }
 
@@ -1037,20 +1075,33 @@ function renderMergeResults() {
   els.mergeEmpty.classList.add("hidden");
   els.mergePartCount.textContent = manifest.count;
   els.mergeSize.textContent = `${width}×${height}`;
-  els.mergeScale.textContent = `${scale}倍`;
+  els.mergeScale.textContent = t("mergeScaleValue", { scale });
   els.mergeGap.textContent = gap;
   renderMergePreview(canvas);
 
   const totalPx = width * height;
   const sourcePx = state.merge.output.sourceArea;
   const stretchNote = state.merge.output.stretched
-    ? `，已${state.merge.output.stretchAxis === "x" ? "横向" : "纵向"}拉伸至 1:1`
+    ? state.merge.output.stretchAxis === "x"
+      ? t("stretchHorizontal")
+      : t("stretchVertical")
     : "";
   els.mergeSummary.classList.remove("hidden");
   els.mergeSummary.textContent =
     sourcePx > 0
-      ? `${manifest.count} 个零件缩放 ${scale} 倍后合并到 ${width}×${height}${stretchNote}，比未打包总面积省 ${(100 * (1 - totalPx / sourcePx)).toFixed(1)}%`
-      : `${manifest.count} 个零件缩放 ${scale} 倍后合并到 ${width}×${height}${stretchNote}`;
+      ? t("mergeSummaryWithSave", {
+          count: manifest.count,
+          scale,
+          size: `${width}×${height}`,
+          stretch: stretchNote,
+          saved: (100 * (1 - totalPx / sourcePx)).toFixed(1),
+        })
+      : t("mergeSummaryBasic", {
+          count: manifest.count,
+          scale,
+          size: `${width}×${height}`,
+          stretch: stretchNote,
+        });
 }
 
 async function downloadMergedImage() {
@@ -1117,7 +1168,7 @@ function addMergeFiles(newFiles) {
   if (!added.length) return;
 
   state.merge.files = [...state.merge.files, ...added];
-  els.folderCount.textContent = `${state.merge.files.length} 张`;
+  els.folderCount.textContent = t("mergeFileCount", { count: state.merge.files.length });
   els.mergeClearBtn.classList.remove("hidden");
   renderFolderPreview(state.merge.files);
   state.merge.output = null;
@@ -1133,7 +1184,7 @@ function clearMergeFiles() {
   state.merge.output = null;
   els.imageInput.value = "";
   renderFolderPreview(state.merge.files);
-  els.folderCount.textContent = "0张";
+  els.folderCount.textContent = t("mergeZeroFiles");
   els.mergeResults.classList.add("hidden");
   els.mergeEmpty.classList.remove("hidden");
   els.mergePreview.replaceChildren();
@@ -1141,7 +1192,7 @@ function clearMergeFiles() {
   els.mergeSummary.textContent = "";
   els.mergePartCount.textContent = "0";
   els.mergeSize.textContent = "0×0";
-  els.mergeScale.textContent = "1倍";
+  els.mergeScale.textContent = t("mergeScaleValue", { scale: 1 });
   els.mergeGap.textContent = "0";
   els.mergeClearBtn.classList.add("hidden");
   setMergeBusy(false);
@@ -1287,7 +1338,7 @@ els.psdWorkspace.addEventListener("drop", (event) => {
     ? [...event.dataTransfer.files].find((f) => /\.(psd|psb)$/i.test(f.name))
     : null;
   if (!file) {
-    showPsdError("此区域仅支持 .psd / .psb 文件，请拖入 PSD 或从左侧上传。");
+    showPsdError(t("psdDropOnlyPsd"));
     return;
   }
   setMode("psd");
@@ -1310,12 +1361,45 @@ window.addEventListener("drop", (event) => {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  const nextThemeLabel = theme === "dark" ? "浅色" : "深色";
+  const nextThemeLabel = theme === "dark" ? t("themeLight") : t("themeDark");
   els.themeToggle.innerHTML = `<i data-lucide="${theme === "dark" ? "sun" : "moon"}" aria-hidden="true"></i><span class="theme-toggle-label">${nextThemeLabel}</span>`;
-  els.themeToggle.setAttribute("aria-label", `切换到${nextThemeLabel}主题`);
-  els.themeToggle.title = `切换到${nextThemeLabel}主题`;
+  const switchThemeKey = theme === "dark" ? "switchToLightTheme" : "switchToDarkTheme";
+  els.themeToggle.setAttribute("aria-label", t(switchThemeKey));
+  els.themeToggle.title = t(switchThemeKey);
   createIcons({ icons });
   localStorage.setItem("theme", theme);
+}
+
+function refreshDynamicText() {
+  setBusy(partRunning.split);
+  setAllBusy(partRunning.all, "all");
+  setAllBusy(partRunning.psd, "psd");
+  setMergeBusy(mergeRunning);
+  els.psdUploadBtn.querySelector("span").textContent = psdLoading ? t("busyPsdReading") : t("uploadPsd");
+  if (state.output) renderResults();
+  if (state.allOutput) renderAllResults("all");
+  if (state.psdOutput) renderPsdResults();
+  else if (state.psdSource) refreshPsdSourceInfo();
+  if (state.merge.output) renderMergeResults();
+  els.folderCount.textContent = state.merge.files.length
+    ? t("mergeFileCount", { count: state.merge.files.length })
+    : t("mergeZeroFiles");
+  if (!state.merge.output) {
+    els.mergeScale.textContent = t("mergeScaleValue", { scale: 1 });
+  }
+}
+
+function applyLanguage(lang) {
+  setLanguage(lang);
+  translateDocument();
+  const targetLabel = getLanguage() === "en" ? "中文" : "EN";
+  els.langToggle.innerHTML = `<i data-lucide="languages" aria-hidden="true"></i><span class="lang-toggle-label">${targetLabel}</span>`;
+  const switchKey = getLanguage() === "en" ? "switchToChinese" : "switchToEnglish";
+  els.langToggle.setAttribute("aria-label", t(switchKey));
+  els.langToggle.title = t(switchKey);
+  createIcons({ icons });
+  refreshDynamicText();
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
 }
 
 els.themeToggle.addEventListener("click", () => {
@@ -1323,6 +1407,11 @@ els.themeToggle.addEventListener("click", () => {
   applyTheme(next);
 });
 
+els.langToggle.addEventListener("click", () => {
+  applyLanguage(getLanguage() === "zh" ? "en" : "zh");
+});
+
+applyLanguage(localStorage.getItem("lang") === "en" ? "en" : "zh");
 applyTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
 
 if (import.meta.env.DEV) {

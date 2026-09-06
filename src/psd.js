@@ -1,26 +1,28 @@
+import { t } from "./i18n.js";
+
 export async function readPsdImage(file) {
   if (!/\.(psd|psb)$/i.test(file.name)) {
-    throw new Error("请选择 .psd 或 .psb 文件；普通图片请使用“拆分零件”模块。");
+    throw new Error(t("psdChooseFileError"));
   }
 
   const header = new DataView(await file.slice(0, 26).arrayBuffer());
   if (header.byteLength < 26 || header.getUint32(0) !== 0x38425053) {
-    throw new Error("文件不是有效的 PSD，或文件已损坏。");
+    throw new Error(t("psdInvalidFile"));
   }
   if (![1, 2].includes(header.getUint16(4))) {
-    throw new Error("暂不支持该 Photoshop 文件版本，请另存为 PSD 或 PSB 后重试。");
+    throw new Error(t("psdUnsupportedVersion"));
   }
   if (![1, 8, 16, 32].includes(header.getUint16(22))) {
-    throw new Error("暂不支持该 PSD 的通道位深，请转换为 8 位后重试。");
+    throw new Error(t("psdUnsupportedDepth"));
   }
 
   const height = header.getUint32(14);
   const width = header.getUint32(18);
   if (!width || !height) {
-    throw new Error("PSD 画布尺寸无效。");
+    throw new Error(t("psdInvalidCanvas"));
   }
   if (width > 32767 || height > 32767 || width * height > 128000000) {
-    throw new Error("PSD 画布过大，请缩小至单边不超过 32767、总计不超过 1.28 亿像素后重试。");
+    throw new Error(t("psdCanvasTooLarge"));
   }
 
   const { readPsd, getCompositeCanvas, getLayerCanvas, getLayerMaskCanvas } = await import("ag-psd");
@@ -40,17 +42,17 @@ export async function readPsdImage(file) {
       psd = readPsd(buffer, { ...readOptions, skipLayerImageData: true, skipCompositeImageData: true, useRawData: false });
       layerDataAvailable = false;
     } catch (fallbackError) {
-      throw new Error(`PSD 解析失败：${fallbackError?.message || "文件可能已损坏或使用了不支持的格式，请重新保存后重试。"}`);
+      throw new Error(t("psdParseFailed", { message: fallbackError?.message || t("psdParseFallback") }));
     }
   }
 
   if (!psd.children?.length) {
-    throw new Error("此文件未读取到原始图层，可能已被扁平化。请上传保留图层的 PSD，不会用合成图冒充图层导出。");
+    throw new Error(t("psdNoLayers"));
   }
   const { entries, groups } = collectLayers(psd.children);
   const warnings = [];
   if (!layerDataAvailable) {
-    warnings.push("图层位图数据解析失败，已降级为合成图模式：各图层将按坐标从合成图裁剪导出，隐藏图层会输出透明占位。");
+    warnings.push({ key: "psdWarningLayerData", vars: {} });
   }
   let canvas = null;
   let composite = null;
@@ -106,11 +108,11 @@ export async function readPsdImage(file) {
     composite = null;
   }
   if (!canvas) {
-    warnings.push("合成预览不可用，但图层结构已读取，仍可尝试逐层导出。");
+    warnings.push({ key: "psdWarningNoPreview", vars: {} });
   } else if (usedLayerPreview) {
-    warnings.push("PSD 合成图不可用，预览已由可见图层重建；16 / 32 位图像按 8 位 PNG 输出。");
+    warnings.push({ key: "psdWarningRebuiltPreview", vars: {} });
   } else if (usedThumbnailPreview) {
-    warnings.push("PSD 内置合成图解码异常，预览已使用内嵌缩略图；图层导出仍按原始图层处理。");
+    warnings.push({ key: "psdWarningThumbnailPreview", vars: {} });
   }
   return { canvas, width, height, entries, groups, warnings, sourceName: file.name, composite, layerDataAvailable };
 }
@@ -340,7 +342,7 @@ function createCanvas(width, height) {
 }
 
 function fileSegment(name, index) {
-  const safeName = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 100) || "未命名";
+  const safeName = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").slice(0, 100) || t("unnamedLayer");
   return `${String(index + 1).padStart(3, "0")}_${safeName}`;
 }
 
@@ -349,7 +351,7 @@ function collectLayers(children) {
   const groups = [];
   function visit(nodes, directory = [], sourcePath = [], parentHidden = false) {
     nodes.forEach((node, siblingIndex) => {
-      const name = node.name || "未命名";
+      const name = node.name || t("unnamedLayer");
       const path = [...sourcePath, name];
       const hidden = parentHidden || node.hidden === true;
       const segment = fileSegment(name, siblingIndex);
@@ -408,7 +410,7 @@ function prepareLayer(entry, source, layout, getLayerCanvas, getLayerMaskCanvas,
   const layerWidth = Math.max(0, (node.right || 0) - (node.left || 0));
   const layerHeight = Math.max(0, (node.bottom || 0) - (node.top || 0));
   if (layerWidth > 32767 || layerHeight > 32767 || layerWidth * layerHeight > 128000000) {
-    throw new Error("图层尺寸过大，请缩小该图层后重试");
+    throw new Error(t("psdLayerTooLarge"));
   }
 
   let decoded = null;
@@ -432,13 +434,22 @@ function prepareLayer(entry, source, layout, getLayerCanvas, getLayerMaskCanvas,
         decoded = createCanvas(cropRight - cropLeft, cropBottom - cropTop);
         decoded.getContext("2d").drawImage(compositeCanvas, cropLeft, cropTop, decoded.width, decoded.height, 0, 0, decoded.width, decoded.height);
         record.usedComposite = true;
-        warnings.push(`${entry.path.join(" / ")}：图层没有独立位图数据，已按坐标 ${left},${top} ${right},${bottom} 从合成图裁剪导出。`);
+        warnings.push({
+          key: "psdWarningCompositeCrop",
+          vars: { path: entry.path.join(" / "), coords: `${left},${top} ${right},${bottom}` },
+        });
       }
     }
     if (!decoded) {
       decoded = createCanvas(1, 1);
       record.placeholder = true;
-      warnings.push(`${entry.path.join(" / ")}：图层没有可导出的位图数据${decodeError ? `（${decodeError.message || decodeError}）` : ""}，已输出透明占位 PNG。`);
+      warnings.push({
+        key: "psdWarningPlaceholder",
+        vars: {
+          path: entry.path.join(" / "),
+          error: decodeError ? t("errorWithDetail", { message: decodeError.message || decodeError }) : "",
+        },
+      });
     }
   }
   let bitmap;
@@ -500,7 +511,7 @@ function prepareLayer(entry, source, layout, getLayerCanvas, getLayerMaskCanvas,
 }
 
 export async function splitPsdLayers(source, layout, options = {}) {
-  if (layout !== "pack" && layout !== "crop") throw new Error("未知的 PSD 输出布局");
+  if (layout !== "pack" && layout !== "crop") throw new Error(t("psdUnknownLayout"));
   const { includeHidden = true } = options;
   const { getLayerCanvas, getLayerMaskCanvas } = await import("ag-psd");
   const layers = [];
@@ -529,13 +540,14 @@ export async function splitPsdLayers(source, layout, options = {}) {
     } catch (error) {
       record.status = "error";
       record.file = null;
-      record.error = error.message || "无法解码该图层";
-      warnings.push(`${entry.path.join(" / ")}：${record.error}`);
+      record.error = error.message || t("psdLayerUndecodable");
+      warnings.push({ key: "psdWarningLayerError", vars: { path: entry.path.join(" / "), error: record.error } });
     }
     if (entry.index % 4 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return {
     layers,
+    warnings,
     layout,
     sourceName: source.sourceName,
     manifest: {
@@ -551,7 +563,7 @@ export async function splitPsdLayers(source, layout, options = {}) {
       hidden: source.entries.filter((entry) => entry.hidden).length,
       groups: source.groups,
       layers: records,
-      warnings,
+      warnings: warnings.map((warning) => t(warning.key, warning.vars)),
     },
   };
 }
