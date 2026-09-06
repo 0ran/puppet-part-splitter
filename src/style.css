@@ -335,7 +335,7 @@ input {
 }
 
 .topbar-divider {
-  width: 1px;
+  width: 0.1px;
   height: 26px;
   background: var(--header-line);
 }
